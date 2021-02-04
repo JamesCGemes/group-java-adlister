@@ -1,6 +1,7 @@
 package com.codeup.adlister.dao;
-import com.codeup.adlister.dao.Config;
+import com.adlister.dao.Config;
 import com.codeup.adlister.models.Ad;
+import com.codeup.adlister.models.User;
 import com.mysql.cj.jdbc.Driver;
 
 import java.io.FileInputStream;
@@ -43,11 +44,12 @@ public class MySQLAdsDao implements Ads {
     @Override
     public Long insert(Ad ad) {
         try {
-            String insertQuery = "INSERT INTO ads(user_id, title, description) VALUES (?, ?, ?)";
+            String insertQuery = "INSERT INTO ads(user_id, title, description, category) VALUES (?, ?, ?, ?)";
             PreparedStatement stmt = connection.prepareStatement(insertQuery, Statement.RETURN_GENERATED_KEYS);
             stmt.setLong(1, ad.getUserId());
             stmt.setString(2, ad.getTitle());
             stmt.setString(3, ad.getDescription());
+            stmt.setString(4, ad.getCategory());
             stmt.executeUpdate();
             ResultSet rs = stmt.getGeneratedKeys();
             rs.next();
@@ -89,7 +91,78 @@ public class MySQLAdsDao implements Ads {
         return null;
     }
 
+    @Override
+    public void editTitle(String title, String adId) {
+        String query = "UPDATE ads SET title = ? WHERE id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setString(1, title);
+            stmt.setString(2, String.valueOf(Integer.parseInt(adId)));
+            stmt.executeUpdate();
+    } catch (SQLException e){
+          throw new RuntimeException("Error editing title.", e);
+        }
+    }
 
+    @Override
+    public void editDescription(String description, String adId) {
+        String query = "UPDATE ads SET description = ? WHERE id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setString(1, description);
+            stmt.setString(2, String.valueOf(Integer.parseInt(adId)));
+            stmt.executeUpdate();
+        } catch (SQLException e){
+            throw new RuntimeException("Error editing description.", e);
+        }
+    }
+
+    @Override
+    public void deleteAd(String adId) {
+        String query = "DELETE FROM ads WHERE id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setString(1, String.valueOf(Integer.parseInt(adId)));
+            stmt.executeUpdate();
+        } catch (SQLException e){
+            throw new RuntimeException("Error deleting ad.", e);
+        }
+    }
+
+    private Ad buildAdObject(ResultSet rs) throws SQLException {
+        Ad ad = new Ad();
+        ad.setId(rs.getLong("a.id"));
+        ad.setTitle(rs.getString("a.title"));
+        ad.setDescription(rs.getString("a.description"));
+        return ad;
+    }
+
+    @Override
+    public List<Ad> getAdsByUser(long user_id) {
+        String query = "SELECT a.*, u.*\n" +
+                "FROM ads AS a\n" +
+                "JOIN users AS u\n" +
+                "ON a.user_id = u.id\n" +
+                "WHERE user_id = ?";
+        List<Ad> ads = new ArrayList<>();
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setLong(1, user_id);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                ads.add(buildAdObject(rs));
+            }
+
+            return ads;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error with retrieving all fads");
+        }
+    }
 
     private Ad extractAd(ResultSet rs) throws SQLException {
         return new Ad(
